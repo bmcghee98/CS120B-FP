@@ -1,15 +1,20 @@
-/*	Author: Briana McGhee
+/*	Author: Briana McGhee, bmcgh001@ucr.edu
  *  Partner(s) Name: 
  *	Lab Section:
- *	Assignment: Lab #9  Exercise #3
- *	Exercise Description: Using the ATmega1284’s built in PWM functionality, design a system where a short,
-five-second melody, is played when a button is pressed. NOTE: The melody must be somewhat
-complex (scaling from C to B is NOT complex).
+ *	Assignment: Final Project - DDR (Demo 1)
+ *	Exercise Description: Dance Dance Revolution is a music video game created by Konami in 1998. In this recreation, DDR is reduced to a mini-game embedded in C. The purpose of the game is to play through
+tunes that have corresponding symbols appearing on the screen. The player controls a joystick
+with a series of buttons and attempts to match the inputs to the symbols displayed on the
+screen. Initially, the player is given 3 life points. If the player fails to match an input correctly, a
+single life point is taken away. When all life points are gone, the game is over and the best
+attempted score is recorded. If the player successfully completes a tune, the life points are
+restored and they move on to the next level. The game is won when every tune has been
+completed.
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
  *
- *	Demo Link: https://youtu.be/dD0Qzl6OV0Y
+ *	Demo Link: https://youtu.be/w8c4zVRmBSU
  */
 
 #include <avr/io.h>
@@ -210,7 +215,7 @@ void Tick_D(){
 	//return D_s;
 }
 
-//int Tick_E(int state){
+//int Tick_E(int state){ //play game
 void Tick_E(){
 	BB = ~PINA & 0x01;
 	GB = ~PINA & 0x02;
