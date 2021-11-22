@@ -16,23 +16,28 @@ complex (scaling from C to B is NOT complex).
 #include <avr/interrupt.h>
 #include "timer.h"
 #include "pwm.h"
+#include <stdio.h>
+#include <stdbool.h>
+
 #ifdef _SIMULATE_
 #include "simAVRHeader.h"
 #endif
 
 enum AStates {AStart, AInit, AStatus} A_s; //keeps track of health
 enum BStates {BStart, BOn, BRelease, BPlay} B_s; //plays the melody
-enum CStates {CStart, CInit, CLight} C_s;
+enum CStates {CStart, CInit, CLight} C_s; //plays the lights with the melody
+enum DStates {DStart, DOff, DOn} D_s; //turns game on and off
 
 unsigned char BB, GB, RB; //input buttons
 unsigned char health; 
-unsigned char R1, R2, G1, G2, Y1, Y2, B1, B2;
+bool gameOn, songOn;
+
 unsigned char count = 0;
 
 double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
 
 
-void Tick_A(){
+void Tick_A(){ //keeps track of health
         switch(A_s){
                 case AStart:
                         A_s = AInit;
@@ -61,7 +66,7 @@ void Tick_A(){
         }
 }
 
-void Tick_B(){
+void Tick_B(){ //plays the melody
 	RB = ~PINA & 0x04;
 
 	switch (B_s){
@@ -69,7 +74,8 @@ void Tick_B(){
 			B_s = BOn;
 			break;
 		case BOn:
-			if (RB){
+			songOn = false;
+			if (RB && (gameOn == true)){
 				B_s = BRelease;
 			} else {
 				B_s = BOn;
@@ -97,9 +103,10 @@ void Tick_B(){
 		case BRelease:
 			break;
 		case BPlay:
+			songOn = true;
 			if (count < 8){
-				count++;
 				set_PWM(melody[count]);
+				count++;
 			}
 			break;
 		default:
@@ -107,25 +114,24 @@ void Tick_B(){
 	}
 }
 
-void Tick_C(){
-	R1 = PORTD & 0x80;
-	G1 = PORTD & 0x40;
-	Y1 = PORTD & 0x20;
-	B1 = PORTD & 0x10;
-	R2 = PORTD & 0x08;
-	G2 = PORTD & 0x04;
-	Y2 = PORTD & 0x02;
-	B2 = PORTD & 0x01;
-
+void Tick_C(){ //plays the lights with the melody
 	switch(C_s){
 		case CStart:
 			C_s = CInit;
 			break;
 		case CInit:
-			C_s = CLight;
+			if (RB){
+				C_s = CLight;
+			} else {
+				C_s = CInit;
+			}
 			break;
 		case CLight:
-			C_s = CLight;
+			if (count > 8){
+				C_s = CInit;
+			} else {
+				C_s = CLight;
+			}
 			break;
 		default:
 			break;
@@ -135,26 +141,58 @@ void Tick_C(){
                 case CStart:
                         break;
                 case CInit:
-			PORTD = 0x00;
+			PORTD = 0xFF;
+			set_PWM(0);
                         break;
                 case CLight:
-			/*
-			if (count == 0 || count == 4){
-				R1 = 0x01;
-				R2 = 0x01;
-			} else if (count == 1 || count == 5){
-				G1 = 0x01;
-				G2 = 0x01;
-			} else if (count == 2 || count == 6 ){
-                                Y1 = 0x01;
-                                Y2 = 0x01;
-                        } else if (count == 3 || count == 7){
-                                B1 = 0x01;
-                                B2 = 0x01;
+			
+			if (count == 1 || count == 5){
+				PORTD = 0x88;
+			} else if (count == 2 || count == 6){
+				PORTD = 0x44;
+			} else if (count == 3 || count == 7){
+                                PORTD = 0x22;
+                        } else if (count == 4 || count == 8){
+                                PORTD = 0x11;
                         }
-			*/
-			PORTD = 0xFF;
+			
+                        break;
+                default:
+                        break;
+        }
+}
 
+void Tick_D(){ //turns game on and off
+	switch(D_s){
+		case DStart:
+			D_s = DOff;
+			break;
+		case DOff:
+			if (RB && (gameOn == false)) {
+				D_s = DOn;
+				gameOn = true;
+			} else {
+				D_s = DOff;
+			}
+			break;
+		case DOn:
+			if (RB && (gameOn == true) && (songOn == false)){
+				D_s = DOff;
+				gameOn = false;
+			} else {
+				DOn;
+			}
+			break;
+		default:
+			break;
+	}
+
+	switch(D_s){
+                case DStart:
+                        break;
+                case DOff:
+                        break;
+                case DOn:
                         break;
                 default:
                         break;
@@ -177,6 +215,7 @@ int main(void) {
 		Tick_A();
 		Tick_B();
 		Tick_C();
+		Tick_D();
 
 		while(!TimerFlag){}
 		TimerFlag = 0;
