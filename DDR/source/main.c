@@ -27,15 +27,16 @@ enum AStates {AStart, AInit, AStatus} A_s; //keeps track of health
 enum BStates {BStart, BOn, BRelease, BPlay} B_s; //plays the melody
 enum CStates {CStart, CInit, CLight} C_s; //plays the lights with the melody
 enum DStates {DStart, DOff, DOn} D_s; //turns game on and off
+enum EStates {EStart, EInit, EPlay} E_s; //play game
 
 unsigned char BB, GB, RB; //input buttons
-unsigned char health; 
+unsigned char health[4] = {0x00, 0x01, 0x02, 0x07}; int hCount = 0;
 bool gameOn, songOn;
 
 unsigned char count = 0;
 
-double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
-
+//double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
+double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
 
 void Tick_A(){ //keeps track of health
         switch(A_s){
@@ -56,10 +57,10 @@ void Tick_A(){ //keeps track of health
                 case AStart:
                         break;
                 case AInit:
-                        health = 0x07;
+                        hCount = 3;
                         break;
                 case AStatus:
-                        PORTC = health;
+                        PORTC = health[hCount];
                         break;
                 default:
                         break;
@@ -68,6 +69,7 @@ void Tick_A(){ //keeps track of health
 
 void Tick_B(){ //plays the melody
 	RB = ~PINA & 0x04;
+	int size = sizeof melody/ sizeof melody[0];
 
 	switch (B_s){
 		case BStart:
@@ -85,7 +87,7 @@ void Tick_B(){ //plays the melody
 			B_s = BPlay;
 			break;
 		case BPlay:
-			if (count < 8){
+			if (count <= size){
 				B_s = BPlay;
 			} else {
 				B_s = BOn;
@@ -99,12 +101,14 @@ void Tick_B(){ //plays the melody
 		case BStart:
 			break;
 		case BOn:
+			count = 0;
+			set_PWM(0);
 			break;
 		case BRelease:
 			break;
 		case BPlay:
 			songOn = true;
-			if (count < 8){
+			if (count <= size){
 				set_PWM(melody[count]);
 				count++;
 			}
@@ -141,8 +145,6 @@ void Tick_C(){ //plays the lights with the melody
                 case CStart:
                         break;
                 case CInit:
-			PORTD = 0xFF;
-			set_PWM(0);
                         break;
                 case CLight:
 			
@@ -170,6 +172,7 @@ void Tick_D(){ //turns game on and off
 		case DOff:
 			if (RB && (gameOn == false)) {
 				D_s = DOn;
+				PORTD = 0xFF;
 				gameOn = true;
 			} else {
 				D_s = DOff;
@@ -199,6 +202,49 @@ void Tick_D(){ //turns game on and off
         }
 }
 
+void Tick_E(){
+	BB = ~PINA & 0x01;
+	GB = ~PINA & 0x02;
+
+	switch(E_s){
+		case EStart:
+			E_s = EInit;
+			break;
+		case EInit:
+			E_s = EPlay;
+			break;
+		case EPlay:
+			E_s = EPlay;
+			break;
+		default:
+			break;
+	}
+
+	switch(E_s){
+                case EStart:
+                        break;
+                case EInit:
+                        break;
+                case EPlay:
+			if (count % 2 == 0){
+				if (BB){
+					if (hCount > 0){ 
+						hCount--;
+					}
+				}
+			} else if (count % 2 != 0){
+				if (GB){
+					if (hCount > 0){
+						hCount--;
+					}
+				}
+			}
+                        break;
+                default:
+                        break;
+        }
+}
+
 int main(void) {
     /* Insert DDR and PORT initializations */
 	DDRA = 0x00; PORTA = 0xFF;
@@ -208,7 +254,7 @@ int main(void) {
     /* Insert your solution below */
 	PWM_on();
 	set_PWM(0);
-	TimerSet(500);
+	TimerSet(1000);
 	TimerOn();
 
     	while (1) {
@@ -216,6 +262,7 @@ int main(void) {
 		Tick_B();
 		Tick_C();
 		Tick_D();
+		Tick_E();
 
 		while(!TimerFlag){}
 		TimerFlag = 0;
