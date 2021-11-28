@@ -28,11 +28,11 @@ completed
 #include "simAVRHeader.h"
 #endif
 
-enum AStates {AStart, AInit, AStatus} A_s; //keeps track of health
-enum BStates {BStart, BOn, BPlay} B_s; //plays the melody
-enum CStates {CStart, CInit, CLight} C_s; //plays the lights with the melody
-enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
-enum EStates {EStart, EInit, EPlay} E_s; //play game
+enum AStates {AStart, AInit, AStatus, AReset} A_s; //keeps track of health
+enum BStates {BStart, BOn, BPlay, BReset} B_s; //plays the melody
+enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the melody
+enum DStates {DStart, DOff, firstNote, silence, DOn, DReset} D_s; //turns game on and off
+enum EStates {EStart, EInit, EPlay, EReset} E_s; //play game
 
 unsigned char BB, GB, RB; //input buttons
 unsigned char health[4] = {0x00, 0x01, 0x02, 0x07}; int hCount = 0;
@@ -40,8 +40,20 @@ bool gameOn, songOn;
 
 unsigned char count = 0;
 
+unsigned char patterns[10] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF};
 //double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
-double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66, 0, }; //pallet town
+double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+int size = sizeof melody/ sizeof melody[0];
+
+void reset(){
+	A_s = AStart;
+	B_s = BStart;
+	C_s = CStart;
+	D_s = DOn;
+	PORTD = 0xFF;
+	E_s = EStart;
+
+}
 
 int Tick_A(int state){ //keeps track of health
         switch(A_s){
@@ -52,7 +64,11 @@ int Tick_A(int state){ //keeps track of health
                         A_s = AStatus;
                         break;
                 case AStatus:
-                        A_s = AStatus;
+			if (hCount == 0){
+				reset();
+			} else {
+                        	A_s = AStatus;
+			}
                         break;
                 default:
                         break;
@@ -66,7 +82,7 @@ int Tick_A(int state){ //keeps track of health
                         break;
                 case AStatus:
                         PORTC = health[hCount];
-                        break;
+			break;
                 default:
                         break;
         }
@@ -75,7 +91,6 @@ int Tick_A(int state){ //keeps track of health
 
 int Tick_B(int state){ //plays the melody
 	RB = ~PINA & 0x04;
-	int size = sizeof melody/ sizeof melody[0];
 
 	switch (B_s){
 		case BStart:
@@ -133,7 +148,7 @@ int Tick_C(int state){ //plays the lights with the melody
 			}
 			break;
 		case CLight:
-			if (count > 8){
+			if (count > size){
 				C_s = CInit;
 			} else {
 				C_s = CLight;
@@ -149,16 +164,11 @@ int Tick_C(int state){ //plays the lights with the melody
                 case CInit:
                         break;
                 case CLight:
-			
-			if (count == 1 || count == 5){
-				PORTD = 0x88;
-			} else if (count == 2 || count == 6){
-				PORTD = 0x44;
-			} else if (count == 3 || count == 7){
-                                PORTD = 0x22;
-                        } else if (count == 4 || count == 8){
-                                PORTD = 0x11;
-                        }
+			if (count > 0){
+			  PORTD = patterns[count];
+			} else {
+				PORTD = 0xFF;
+			}
                         break;
                 default:
                         break;
@@ -167,7 +177,6 @@ int Tick_C(int state){ //plays the lights with the melody
 }
 
 int Tick_D(int state){ //turns game on and off
-//void Tick_D(){
 	switch(D_s){
 		case DStart:
 			D_s = DOff;
