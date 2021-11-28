@@ -35,19 +35,23 @@ enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and of
 enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 
 unsigned char BB, GB, RB; //input buttons
-unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0;
-unsigned char score;
-bool gameOn;
+unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
+unsigned char score; //track score
+unsigned char count = 0; //cycle through melody and lights
+
+bool gameOn; //is the game on or off?
 int songStatus; //0 = off 1 = on 2 = end;
 
-unsigned char count = 0;
+unsigned char patterns[10] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
 
-unsigned char patterns[10] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF};
-//double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
-double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+double melodyA[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+double melodyB[];
+double melodyC[];
+double melodyD[];
+double melodyE[];
 
 
-int size = sizeof melody/ sizeof melody[0];
+int size = sizeof melody/ sizeof melody[0]; //size of the song
 
 void reset(){
 	A_s = AReset;
@@ -317,7 +321,6 @@ int main(void) {
 	unsigned char i = 0;
 
 	//keeps track of health
-	//
 	tasks[i].state = AStart;
 	tasks[i].period = 300;
 	tasks[i].elapsedTime = 0;
@@ -355,20 +358,7 @@ int main(void) {
         TimerOn();
 	PWM_on();
 
-	
-    	while (1) {
+    	while (1){}
 
-		/*
-		Tick_A();
-		Tick_B();
-		Tick_C();
-		Tick_D();
-		Tick_E();
-		
-		while(!TimerFlag){}
-		TimerFlag = 0;
-		*/
-	
-	}
         return 1;
 }
