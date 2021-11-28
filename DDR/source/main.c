@@ -1,6 +1,6 @@
 /*	Author: Briana McGhee, bmcgh001@ucr.edu
  *  Partner(s) Name: 
- *	Lab Section:
+ *	Lab Section: 21
  *	Assignment: Final Project - DDR (Demo 1)
  *	Exercise Description: Dance Dance Revolution is a music video game created by Konami in 1998. In this recreation, DDR is reduced to a mini-game embedded in C. The purpose of the game is to play through
 tunes that have corresponding symbols appearing on the screen. The player controls a joystick
@@ -9,7 +9,7 @@ screen. Initially, the player is given 3 life points. If the player fails to mat
 single life point is taken away. When all life points are gone, the game is over and the best
 attempted score is recorded. If the player successfully completes a tune, the life points are
 restored and they move on to the next level. The game is won when every tune has been
-completed.
+completed
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
@@ -43,8 +43,8 @@ unsigned char count = 0;
 //double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
 double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
 
-//int Tick_A(int state){ //keeps track of health
-void Tick_A(){
+int Tick_A(int state){ //keeps track of health
+//void Tick_A(){
         switch(A_s){
                 case AStart:
                         A_s = AInit;
@@ -71,11 +71,11 @@ void Tick_A(){
                 default:
                         break;
         }
-//	return A_s;
+	return A_s;
 }
 
-//int Tick_B(int state){ //plays the melody
-void Tick_B(){
+int Tick_B(int state){ //plays the melody
+//void Tick_B(){
 	RB = ~PINA & 0x04;
 	int size = sizeof melody/ sizeof melody[0];
 
@@ -124,11 +124,11 @@ void Tick_B(){
 		default:
 			break;
 	}
-	//return B_s;
+	return B_s;
 }
 
-//int Tick_C(int state){ //plays the lights with the melody
-void Tick_C(){
+int Tick_C(int state){ //plays the lights with the melody
+//void Tick_C(){
 	switch(C_s){
 		case CStart:
 			C_s = CInit;
@@ -172,11 +172,11 @@ void Tick_C(){
                 default:
                         break;
         }
-	//return C_s;
+	return C_s;
 }
 
-//int Tick_D(int state){ //turns game on and off
-void Tick_D(){
+int Tick_D(int state){ //turns game on and off
+//void Tick_D(){
 	switch(D_s){
 		case DStart:
 			D_s = DOff;
@@ -212,11 +212,11 @@ void Tick_D(){
                 default:
                         break;
         }
-	//return D_s;
+	return D_s;
 }
 
-//int Tick_E(int state){ //play game
-void Tick_E(){
+int Tick_E(int state){ //play game
+//void Tick_E(){
 	BB = ~PINA & 0x01;
 	GB = ~PINA & 0x02;
 
@@ -257,7 +257,7 @@ void Tick_E(){
                 default:
                         break;
         }
-	//return E_s;
+	return E_s;
 }
 
 int main(void) {
@@ -268,40 +268,51 @@ int main(void) {
 	DDRD = 0xFF; PORTD = 0x00;
     /* Insert your solution below */
 	
-	/*
-	unsigned char i = 0;	
+	unsigned char i = 0;
+
+	//keeps track of health
+	//
 	tasks[i].state = AStart;
-	tasks[i].period = 50;
+	tasks[i].period = 300;
 	tasks[i].elapsedTime = 0;
 	tasks[i].TickFct = &Tick_A;
 	i++;
+
+	//plays the melody
 	tasks[i].state = BStart;
 	tasks[i].period = 700;
 	tasks[i].elapsedTime = 700;
 	tasks[i].TickFct = &Tick_B;
 	i++;
+
+	//plays the lights with the melody
 	tasks[i].state = CStart;
         tasks[i].period = 1000;
         tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_C;
 	i++;
+
+	//turns game on and off
 	tasks[i].state = DStart;
-	tasks[i].period = 500;
+	tasks[i].period = 300;
 	tasks[i].elapsedTime = 0;
 	tasks[i].TickFct = &Tick_D;
 	i++;
+
+	//play game
 	tasks[i].state = EStart;
-        tasks[i].period = 100;
+        tasks[i].period = 300;
         tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_E;
 
-	*/
 	PWM_on();
         set_PWM(0);
-        TimerSet(500);
+        TimerSet(100);
         TimerOn();
 
     	while (1) {
+
+		/*
 		Tick_A();
 		Tick_B();
 		Tick_C();
@@ -310,6 +321,7 @@ int main(void) {
 		
 		while(!TimerFlag){}
 		TimerFlag = 0;
+		*/
 	
 	}
         return 1;

@@ -5,7 +5,7 @@ volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
 unsigned long _avr_timer_cntcurr = 0;
 
-/*
+
 typedef struct task{
         int state;
         unsigned long period;
@@ -23,12 +23,12 @@ void TimerISR(){
                         tasks[i].state = tasks[i].TickFct(tasks[i].state);
                         tasks[i].elapsedTime = 0;
                 }
-                tasks[i].elapsedTime += 1;
+                tasks[i].elapsedTime += 100;
         }
 }
-*/
 
-void TimerISR(){TimerFlag = 1;}
+
+//void TimerISR(){TimerFlag = 1;}
 
 void TimerOn() {
 	TCCR1B = 0x0B;
