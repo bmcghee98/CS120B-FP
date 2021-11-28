@@ -31,28 +31,29 @@ completed
 enum AStates {AStart, AInit, AStatus, AReset} A_s; //keeps track of health
 enum BStates {BStart, BOn, BPlay, BReset} B_s; //plays the melody
 enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the melody
-enum DStates {DStart, DOff, firstNote, silence, DOn, DReset} D_s; //turns game on and off
-enum EStates {EStart, EInit, EPlay, EReset} E_s; //play game
+enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
+enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 
 unsigned char BB, GB, RB; //input buttons
-unsigned char health[4] = {0x00, 0x01, 0x02, 0x07}; int hCount = 0;
-bool gameOn, songOn;
+unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0;
+unsigned char score;
+bool gameOn;
+int songStatus; //0 = off 1 = on 2 = end;
 
 unsigned char count = 0;
 
 unsigned char patterns[10] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF};
 //double melody[8] = {415.305, 349.23, 329.63, 493.88, 293.66, 415.305, 523.25, 261.63};
 double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+
+
 int size = sizeof melody/ sizeof melody[0];
 
 void reset(){
-	A_s = AStart;
-	B_s = BStart;
-	C_s = CStart;
-	D_s = DOn;
-	PORTD = 0xFF;
-	E_s = EStart;
-
+	A_s = AReset;
+	B_s = AReset;
+	C_s = AReset;
+	E_s = EReset;
 }
 
 int Tick_A(int state){ //keeps track of health
@@ -64,12 +65,10 @@ int Tick_A(int state){ //keeps track of health
                         A_s = AStatus;
                         break;
                 case AStatus:
-			if (hCount == 0){
-				reset();
-			} else {
-                        	A_s = AStatus;
-			}
+			A_s = AStatus;
                         break;
+		case AReset:
+			A_s = AStart;
                 default:
                         break;
         }
@@ -78,10 +77,12 @@ int Tick_A(int state){ //keeps track of health
                 case AStart:
                         break;
                 case AInit:
-                        hCount = 3;
+                        hCount = 4;
                         break;
                 case AStatus:
                         PORTC = health[hCount];
+			break;
+		case AReset:
 			break;
                 default:
                         break;
@@ -110,6 +111,9 @@ int Tick_B(int state){ //plays the melody
 				B_s = BOn;
 			}
 			break;
+		case BReset:
+			B_s = BStart;
+			break;
 		default:
 			break;
 	}
@@ -118,16 +122,23 @@ int Tick_B(int state){ //plays the melody
 		case BStart:
 			break;
 		case BOn:
-			songOn = false;
+			songStatus = 0;
 			count = 0;
 			set_PWM(0);
 			break;
 		case BPlay:
-			songOn = true;
+			songStatus = 1;
 			if (count <= size){
 				set_PWM(melody[count]);
 				count++;
 			}
+
+			if (count ==  size + 1){
+				songStatus = 2;
+			}
+			break;
+		case BReset:
+			set_PWM(261.63);
 			break;
 		default:
 			break;
@@ -154,6 +165,8 @@ int Tick_C(int state){ //plays the lights with the melody
 				C_s = CLight;
 			}
 			break;
+		case CReset:
+			C_s = CStart;
 		default:
 			break;
 	}
@@ -165,11 +178,13 @@ int Tick_C(int state){ //plays the lights with the melody
                         break;
                 case CLight:
 			if (count > 0){
-			  PORTD = patterns[count];
+			  	PORTD = patterns[count];
 			} else {
 				PORTD = 0xFF;
 			}
                         break;
+		case CReset:
+			break;
                 default:
                         break;
         }
@@ -196,7 +211,7 @@ int Tick_D(int state){ //turns game on and off
 			D_s = DOn;
 			break;
 		case DOn:
-			if (RB && (gameOn == true) && (songOn == false)){
+			if (RB && (gameOn == true) && (songStatus == 0)){
 				D_s = DOff;
 				gameOn = false;
 			} else {
@@ -240,7 +255,18 @@ int Tick_E(int state){ //play game
 			E_s = EPlay;
 			break;
 		case EPlay:
-			E_s = EPlay;
+			if (hCount == 0){
+                                reset();
+                        } else if (songStatus == 2 && hCount != 0){
+				E_s = EWin;
+			} else	{
+                                E_s = EPlay;
+                        }
+			break;
+		case EWin:
+			break;
+		case EReset:
+			E_s = EStart;
 			break;
 		default:
 			break;
@@ -252,13 +278,13 @@ int Tick_E(int state){ //play game
                 case EInit:
                         break;
                 case EPlay:
-			if (count % 2 == 0){
+			if (count % 2 == 0 && songStatus == 1){
 				if (BB){
 					if (hCount > 0){ 
 						hCount--;
 					}
 				}
-			} else if (count % 2 != 0){
+			} else if (count % 2 != 0 && songStatus == 1){
 				if (GB){
 					if (hCount > 0){
 						hCount--;
@@ -266,6 +292,14 @@ int Tick_E(int state){ //play game
 				}
 			}
                         break;
+		case EWin:
+			score++;
+			set_PWM(523.25);
+			reset();
+			break;
+		case EReset:
+			set_PWM(0);
+			break;
                 default:
                         break;
         }
@@ -306,14 +340,14 @@ int main(void) {
 
 	//turns game on and off
 	tasks[i].state = DStart;
-	tasks[i].period = 300;
+	tasks[i].period = 500;
 	tasks[i].elapsedTime = 0;
 	tasks[i].TickFct = &Tick_D;
 	i++;
 
 	//play game
 	tasks[i].state = EStart;
-        tasks[i].period = 300;
+        tasks[i].period = 700;
         tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_E;
 
