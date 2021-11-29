@@ -13,7 +13,7 @@ typedef struct task{
         int (*TickFct)(int);
 } task;
 
-#define tasksNum 5
+#define tasksNum 6
 task tasks[tasksNum];
 
 void TimerISR(){
