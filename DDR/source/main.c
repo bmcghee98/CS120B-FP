@@ -15,10 +15,12 @@ completed
  *	code, is my own original work.
  *
  *	Complexity 1: https://youtu.be/GmyphbOv_po
+ *	Complexity 2: https://youtu.be/roRe8nDgkyE
  */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include "timer.h"
 #include "pwm.h"
 #include "adc.h"
@@ -36,12 +38,14 @@ enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and of
 enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 
-unsigned char BB, GB, YB, RB; //input buttons
-unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
-unsigned char score; //track score
-unsigned char count = 0; //cycle through melody and lights
+unsigned char BB, GB, YB, RB; //buttons
 unsigned short x, y; //joystick vertical and horizontal
 unsigned char input; //result of joystick input
+
+unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
+unsigned char score, eScore; //track score, save to EEPROM
+
+unsigned char count = 0; //cycle through melody and lights
 
 bool gameOn; //is the game on or off?
 int songStatus; //0 = off 1 = on 2 = end;
@@ -88,7 +92,7 @@ int Tick_A(int state){ //keeps track of health
                         hCount = 4;
                         break;
                 case AStatus:
-			PORTC = health[hCount];
+			//PORTC = health[hCount];
 		       	break;
 		case AReset:
 			break;
@@ -232,6 +236,10 @@ int Tick_D(int state){ //turns game on and off
                 case DStart:
                         break;
                 case DOff:
+			eScore = eeprom_read_byte(0);
+                        if (eScore > 0){
+                                PORTC = 0x01;
+                        }
 			PORTD = 0x00;
                         break;
 		case firstNote:
@@ -301,6 +309,16 @@ int Tick_E(int state){ //play game
                         break;
 		case EWin:
 			score++;
+			if (score == 1){
+				eeprom_write_byte(0, score);
+			} else if (score > 1) {
+				eScore = eeprom_read_byte(0);
+
+				if (eScore < score){
+					eeprom_write_byte(0, score);
+					PORTC = 0x02;
+				}
+			}
 			set_PWM(523.25);
 			reset();
 			break;
