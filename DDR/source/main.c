@@ -14,7 +14,7 @@ completed
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
  *
- *	Demo Link: https://youtu.be/w8c4zVRmBSU
+ *	Complexity 1: https://youtu.be/GmyphbOv_po
  */
 
 #include <avr/io.h>
@@ -36,7 +36,7 @@ enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and of
 enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 
-unsigned char BB, GB, RB; //input buttons
+unsigned char BB, GB, YB, RB; //input buttons
 unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
 unsigned char score; //track score
 unsigned char count = 0; //cycle through melody and lights
@@ -65,7 +65,6 @@ void reset(){
 }
 
 int Tick_A(int state){ //keeps track of health
-
         switch(A_s){
                 case AStart:
                         A_s = AInit;
@@ -89,11 +88,11 @@ int Tick_A(int state){ //keeps track of health
                         hCount = 4;
                         break;
                 case AStatus:
-			PORTC = health[hCount];	
+			PORTC = health[hCount];
 		       	break;
 		case AReset:
 			break;
-                default:
+		default:
                         break;
         }
 	return A_s;
@@ -253,6 +252,7 @@ int Tick_D(int state){ //turns game on and off
 int Tick_E(int state){ //play game
 	BB = ~PINA & 0x01;
 	GB = ~PINA & 0x02;
+	YB = ~PINA & 0x04;
 
 	switch(E_s){
 		case EStart:
@@ -286,13 +286,13 @@ int Tick_E(int state){ //play game
                         break;
                 case EPlay:
 			if (count % 2 == 0 && songStatus == 1){
-				if (input != 1){ //bb
+				if (BB){
 					if (hCount > 0){ 
 						hCount--;
 					}
 				}
 			} else if (count % 2 != 0 && songStatus == 1){
-				if (input != 3){
+				if (GB){
 					if (hCount > 0){
 						hCount--;
 					}
@@ -314,8 +314,8 @@ int Tick_E(int state){ //play game
 }
 
 int Tick_F(int state){ //monitor joystick inputs
-	x = ADC_read(4);
-        y = ADC_read(3);
+	x = ADC_read(5);
+        y = ADC_read(4);
 
 	switch(F_s){
 		case FStart:
@@ -399,8 +399,8 @@ int main(void) {
 
 	//monitor joystick inputs
 	tasks[i].state = FStart;
-        tasks[i].period = 750;
-        tasks[i].elapsedTime = 750;
+        tasks[i].period = 500;
+        tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_F;
 
 
@@ -409,7 +409,23 @@ int main(void) {
 	PWM_on();
 	ADC_init();
 
-    	while (1){}
+    	while (1){
+		
+	/*	Used to test the joystick inputs
+
+	 	x = ADC_read(5);
+        	y = ADC_read(4);
+
+		if(x >= MAX || y >= MAX){
+                	PORTC = 0x01;
+                } else if (x <= MIN || y <= MIN){
+                        PORTC = 0x02;
+                } else {
+                	PORTC = 0x00;
+                }                                       */
+
+	
+	}
 
         return 1;
 }

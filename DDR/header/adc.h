@@ -3,7 +3,6 @@
 
 #define MAX 600
 #define MIN 100
-
 void ADC_init(){
 	ADMUX |= (1 << REFS0);
 	ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
