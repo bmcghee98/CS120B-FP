@@ -1,7 +1,7 @@
 /*	Author: Briana McGhee, bmcgh001@ucr.edu
  *  Partner(s) Name: 
  *	Lab Section: 21
- *	Assignment: Final Project - DDR (Demo 1)
+ *	Assignment: Final Project - DDR (Final Demo)
  *	Exercise Description: Dance Dance Revolution is a music video game created by Konami in 1998. In this recreation, DDR is reduced to a mini-game embedded in C. The purpose of the game is to play through
 tunes that have corresponding symbols appearing on the screen. The player controls a joystick
 with a series of buttons and attempts to match the inputs to the symbols displayed on the
@@ -16,11 +16,13 @@ completed
  *
  *	Complexity 1: https://youtu.be/GmyphbOv_po
  *	Complexity 2: https://youtu.be/roRe8nDgkyE
+ *	Complexity 3: caught on fire
  */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
+#include "io.h"
 #include "timer.h"
 #include "pwm.h"
 #include "adc.h"
@@ -37,6 +39,7 @@ enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the me
 enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
 enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
+enum GStates {GStart, GInit, GPlay} G_s;
 
 unsigned char BB, GB, YB, RB; //buttons
 unsigned short x, y; //joystick vertical and horizontal
@@ -65,7 +68,7 @@ void reset(){
 	B_s = AReset;
 	C_s = AReset;
 	E_s = EReset;
-	PORTD = 0xFF;
+	PORTD = 0x3F;
 }
 
 int Tick_A(int state){ //keeps track of health
@@ -92,7 +95,7 @@ int Tick_A(int state){ //keeps track of health
                         hCount = 4;
                         break;
                 case AStatus:
-			//PORTC = health[hCount];
+			PORTB = health[hCount];
 		       	break;
 		case AReset:
 			break;
@@ -192,7 +195,7 @@ int Tick_C(int state){ //plays the lights with the melody
 			if (count > 0){
 			  	PORTD = patterns[count];
 			} else {
-				PORTD = 0xFF;
+				PORTD = 0x3F;
 			}
                         break;
 		case CReset:
@@ -211,7 +214,7 @@ int Tick_D(int state){ //turns game on and off
 		case DOff:
 			if (RB && (gameOn == false)) {
 				D_s = firstNote;
-				PORTD = 0xFF;
+				PORTD = 0x3F;
 			} else {
 				D_s = DOff;
 			}
@@ -236,10 +239,10 @@ int Tick_D(int state){ //turns game on and off
                 case DStart:
                         break;
                 case DOff:
-			eScore = eeprom_read_byte(0);
-                        if (eScore > 0){
-                                PORTC = 0x01;
-                        }
+			//eScore = eeprom_read_byte(0);
+                        //if (eScore > 0){
+                          //      PORTC = 0x01;
+                        //}
 			PORTD = 0x00;
                         break;
 		case firstNote:
@@ -247,6 +250,8 @@ int Tick_D(int state){ //turns game on and off
 			break;
 		case silence:
 			set_PWM(0);
+			LCD_ClearScreen();
+                        LCD_DisplayString(1, "Welcome to DDR! Press the red button to begin. ");
 			gameOn = true;
 			break;
                 case DOn:
@@ -294,12 +299,14 @@ int Tick_E(int state){ //play game
                         break;
                 case EPlay:
 			if (count % 2 == 0 && songStatus == 1){
+				LCD_DisplayString(1, "G");
 				if (BB){
 					if (hCount > 0){ 
 						hCount--;
 					}
 				}
 			} else if (count % 2 != 0 && songStatus == 1){
+				LCD_DisplayString(1, "B");
 				if (GB){
 					if (hCount > 0){
 						hCount--;
@@ -316,7 +323,7 @@ int Tick_E(int state){ //play game
 
 				if (eScore < score){
 					eeprom_write_byte(0, score);
-					PORTC = 0x02;
+					//PORTC = 0x02;
 				}
 			}
 			set_PWM(523.25);
@@ -370,6 +377,7 @@ int Tick_F(int state){ //monitor joystick inputs
         }
 	return F_s;
 }
+
 int main(void) {
     /* Insert DDR and PORT initializations */
 	DDRA = 0x00; PORTA = 0xFF;
@@ -421,12 +429,12 @@ int main(void) {
         tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_F;
 
-
         TimerSet(100);
         TimerOn();
 	PWM_on();
 	ADC_init();
-
+	LCD_init();
+	
     	while (1){
 		
 	/*	Used to test the joystick inputs
