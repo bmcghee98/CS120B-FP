@@ -16,7 +16,7 @@ completed
  *
  *	Complexity 1: https://youtu.be/GmyphbOv_po
  *	Complexity 2: https://youtu.be/roRe8nDgkyE
- *	Complexity 3: caught on fire
+ *	Complexity 3: https://youtu.be/VkaSIxvdEtM
  */
 
 #include <avr/io.h>
@@ -37,7 +37,7 @@ enum AStates {AStart, AInit, AStatus, AReset} A_s; //keeps track of health
 enum BStates {BStart, BInit, BOn, BPlay, BReset} B_s; //plays the melody
 enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the melody
 enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
-enum EStates {EStart, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, EReset} E_s; //play game
+enum EStates {EStart, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, ELose, EReset} E_s; //the actual game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 //enum GStates {GStart, GInit, GPlay, GEnd} G_s; //LCD screen
 
@@ -146,12 +146,12 @@ int Tick_B(int state){ //plays the melody
 			set_PWM(0);
 			break;
 		case BPlay:
-			if (count <= size + 1){
+			if (count <= size){
 				set_PWM(melody[count]);
 				count++;
 			}
 
-			if (count >=  size){
+			if (count >=  size + 1){
 				songStatus = 2;
 			}
 			break;
@@ -250,7 +250,8 @@ int Tick_D(int state){ //turns game on and off
 			break;
 		case silence:
 			set_PWM(0);
-                        LCD_DisplayString(1, "Welcome to DDR!\n START *");
+                        LCD_DisplayString(1, "Welcome to DDR! START * ");
+			LCD_WriteData(eScore);
 			gameOn = true;
 			break;
                 case DOn:
@@ -261,17 +262,19 @@ int Tick_D(int state){ //turns game on and off
 	return D_s;
 }
 
-int Tick_E(int state){ //play game
+int Tick_E(int state){ //the actual game
 	BB = ~PINA & 0x01;
 	GB = ~PINA & 0x02;
 	YB = ~PINA & 0x08;
+
+	eScore = 0;
 
 	switch(E_s){
 		case EStart:
 			E_s = EInit;
 			break;
 		case EInit:
-			if (((column - 18) * (column - 22) < 0) && YB){
+			if (((column - 17) * (column - 23) < 0) && YB){
 				E_s = OPTION1A;
 			} else if (column == 24 && YB){
 				E_s = HSCORE;
@@ -293,7 +296,7 @@ int Tick_E(int state){ //play game
 			break;
 		case EPlay:
 			if (hCount == 0){
-                                reset();
+				E_s = ELose;
                         } else if (songStatus == 2 && hCount != 0){
 				E_s = EWin;
 			} else	{
@@ -301,6 +304,8 @@ int Tick_E(int state){ //play game
                         }
 			break;
 		case EWin:
+			break;
+		case ELose:
 			break;
 		case EReset:
 			E_s = EStart;
@@ -325,7 +330,7 @@ int Tick_E(int state){ //play game
 			songStatus = 1;
 			break;
                 case HSCORE:
-			LCD_DisplayString(1, "High score: " + (eScore + '0'));
+			LCD_WriteData(eScore + '0');
                         break;
                 case EPlay:
 			if (count % 2 == 0 && count != 9 && songStatus == 1){
@@ -352,7 +357,9 @@ int Tick_E(int state){ //play game
 			}
                         break;
 		case EWin:
+			LCD_DisplayString(1, "You won! +1     Continue? Y/N");
 			score++;
+
 			if (score == 1){
 				eeprom_write_byte(0, score);
 			} else if (score > 1) {
@@ -366,7 +373,19 @@ int Tick_E(int state){ //play game
 			set_PWM(523.25);
 			reset();
 			break;
+		case ELose:
+			eScore = eeprom_read_byte(0);
+			if (eScore < score){
+				eeprom_write_byte(0, score);
+				LCD_DisplayString(1, "You lose!       Score saved");
+			} else {
+				LCD_DisplayString(1, "You lose!");
+				score = 0;
+			}
+			eeprom_write_byte(0, score);
+			break;
 		case EReset:
+			reset();
 			set_PWM(0);
 			break;
                 default:
