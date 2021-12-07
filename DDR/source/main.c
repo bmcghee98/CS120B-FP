@@ -34,10 +34,10 @@ completed
 #endif
 
 enum AStates {AStart, AInit, AStatus, AReset} A_s; //keeps track of health
-enum BStates {BStart, BOn, BPlay, BReset} B_s; //plays the melody
+enum BStates {BStart, BInit, BOn, BPlay, BReset} B_s; //plays the melody
 enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the melody
 enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
-enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
+enum EStates {EStart, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, EReset} E_s; //play game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 //enum GStates {GStart, GInit, GPlay, GEnd} G_s; //LCD screen
 
@@ -95,7 +95,7 @@ int Tick_A(int state){ //keeps track of health
                         hCount = 4;
                         break;
                 case AStatus:
-			//PORTB = health[hCount];
+			PORTB = health[hCount];
 		       	break;
 		case AReset:
 			break;
@@ -112,8 +112,11 @@ int Tick_B(int state){ //plays the melody
 		case BStart:
 			B_s = BOn;
 			break;
+		case BInit:
+			B_s = BOn;
+			break;
 		case BOn:
-			if (RB && (gameOn == true)){
+			if (songStatus == 1 && (gameOn == true)){
 				B_s = BPlay;
 			} else {
 				B_s = BOn;
@@ -136,19 +139,19 @@ int Tick_B(int state){ //plays the melody
 	switch (B_s){
 		case BStart:
 			break;
-		case BOn:
+		case BInit:
 			songStatus = 0;
+		case BOn:
 			count = 0;
 			set_PWM(0);
 			break;
 		case BPlay:
-			songStatus = 1;
-			if (count <= size){
+			if (count <= size + 1){
 				set_PWM(melody[count]);
 				count++;
 			}
 
-			if (count ==  size + 1){
+			if (count >=  size){
 				songStatus = 2;
 			}
 			break;
@@ -167,7 +170,7 @@ int Tick_C(int state){ //plays the lights with the melody
 			C_s = CInit;
 			break;
 		case CInit:
-			if (RB){
+			if (songStatus == 1){
 				C_s = CLight;
 			} else {
 				C_s = CInit;
@@ -239,10 +242,7 @@ int Tick_D(int state){ //turns game on and off
                 case DStart:
                         break;
                 case DOff:
-			//eScore = eeprom_read_byte(0);
-                        //if (eScore > 0){
-                          //      PORTC = 0x01;
-                        //}
+			eScore = eeprom_read_byte(0);
 			PORTD = 0x00;
                         break;
 		case firstNote:
@@ -250,7 +250,7 @@ int Tick_D(int state){ //turns game on and off
 			break;
 		case silence:
 			set_PWM(0);
-                        LCD_DisplayString(1, "Welcome to DDR!\n START  EXIT *");
+                        LCD_DisplayString(1, "Welcome to DDR!\n START *");
 			gameOn = true;
 			break;
                 case DOn:
@@ -264,14 +264,32 @@ int Tick_D(int state){ //turns game on and off
 int Tick_E(int state){ //play game
 	BB = ~PINA & 0x01;
 	GB = ~PINA & 0x02;
-	YB = ~PINA & 0x04;
+	YB = ~PINA & 0x08;
 
 	switch(E_s){
 		case EStart:
 			E_s = EInit;
 			break;
 		case EInit:
+			if (((column - 18) * (column - 22) < 0) && YB){
+				E_s = OPTION1A;
+			} else if (column == 24 && YB){
+				E_s = HSCORE;
+			}
+			break;
+		case OPTION1A:
+			E_s = OPTION1B;
+			break;
+		case OPTION1B:
+			E_s = OPTION1C;
+			break;
+		case OPTION1C:
 			E_s = EPlay;
+			break;
+		case HSCORE:
+			if (YB){
+				E_s = EInit;
+			}
 			break;
 		case EPlay:
 			if (hCount == 0){
@@ -295,6 +313,19 @@ int Tick_E(int state){ //play game
                 case EStart:
                         break;
                 case EInit:
+                        break;
+		case OPTION1A:
+			LCD_DisplayString(1, "Get ready...");
+                        break;
+		case OPTION1B:
+			LCD_DisplayString(1, "Set...");
+			break;
+		case OPTION1C:
+			LCD_DisplayString(1, "GO!");
+			songStatus = 1;
+			break;
+                case HSCORE:
+			LCD_DisplayString(1, "High score: " + (eScore + '0'));
                         break;
                 case EPlay:
 			if (count % 2 == 0 && count != 9 && songStatus == 1){
@@ -380,7 +411,7 @@ int Tick_F(int state){ //monitor joystick inputs
 				}
         		} else if (x < MIN){
                 		input = 3; //L
-				if (column > 17){
+				if (column > 1){
 					column--;
 				}
         		} else if (y < MIN){
@@ -505,7 +536,7 @@ int main(void) {
 	
     	while (1){
 		
-		//Used to test the joystick inputs
+/*		//Used to test the joystick inputs
 
 	 	x = ADC_read(5);
         	y = ADC_read(4);
@@ -517,7 +548,7 @@ int main(void) {
                 } else {
                 	PORTB = 0x00;
                 }                                       
-	
+*/	
 	}
 
         return 1;
