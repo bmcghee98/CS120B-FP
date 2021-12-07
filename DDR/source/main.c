@@ -39,7 +39,7 @@ enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the me
 enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
 enum EStates {EStart, EInit, EPlay, EWin, EReset} E_s; //play game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
-enum GStates {GStart, GInit, GPlay} G_s;
+//enum GStates {GStart, GInit, GPlay, GEnd} G_s; //LCD screen
 
 unsigned char BB, GB, YB, RB; //buttons
 unsigned short x, y; //joystick vertical and horizontal
@@ -49,7 +49,7 @@ unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //disp
 unsigned char score, eScore; //track score, save to EEPROM
 
 unsigned char count = 0; //cycle through melody and lights
-
+unsigned char column = 32; //moves LCD cursor with joystick
 bool gameOn; //is the game on or off?
 int songStatus; //0 = off 1 = on 2 = end;
 
@@ -95,7 +95,7 @@ int Tick_A(int state){ //keeps track of health
                         hCount = 4;
                         break;
                 case AStatus:
-			PORTB = health[hCount];
+			//PORTB = health[hCount];
 		       	break;
 		case AReset:
 			break;
@@ -250,8 +250,7 @@ int Tick_D(int state){ //turns game on and off
 			break;
 		case silence:
 			set_PWM(0);
-			LCD_ClearScreen();
-                        LCD_DisplayString(1, "Welcome to DDR! Press the red button to begin. ");
+                        LCD_DisplayString(1, "Welcome to DDR!\n START  EXIT *");
 			gameOn = true;
 			break;
                 case DOn:
@@ -298,16 +297,23 @@ int Tick_E(int state){ //play game
                 case EInit:
                         break;
                 case EPlay:
-			if (count % 2 == 0 && songStatus == 1){
-				LCD_DisplayString(1, "G");
-				if (BB){
+			if (count % 2 == 0 && count != 9 && songStatus == 1){
+				LCD_DisplayString(1, "           Green");
+				if (BB || YB){
 					if (hCount > 0){ 
 						hCount--;
 					}
 				}
-			} else if (count % 2 != 0 && songStatus == 1){
-				LCD_DisplayString(1, "B");
-				if (GB){
+			} else if (count != 5 && count != 1 && count % 2 != 0 && songStatus == 1){
+				LCD_DisplayString(1, "    Blue");
+				if (GB || YB){
+					if (hCount > 0){
+						hCount--;
+					}
+				}
+			} else if (count == 5 || count == 1 || count == 9){
+				LCD_DisplayString(1, "Yellow");
+				if (BB || GB){
 					if (hCount > 0){
 						hCount--;
 					}
@@ -323,7 +329,7 @@ int Tick_E(int state){ //play game
 
 				if (eScore < score){
 					eeprom_write_byte(0, score);
-					//PORTC = 0x02;
+					//FIX
 				}
 			}
 			set_PWM(523.25);
@@ -362,21 +368,83 @@ int Tick_F(int state){ //monitor joystick inputs
                 case FInit:
                         break;
                 case FStatus:
-			if (x >= MAX){
-                		input = 1; //D
-        		} else if (y >= MAX){
-                		input = 2; //R
-        		} else if (x <= MIN){
-                		input = 3; //U
-        		} else if (y <= MIN){
-                		input = 4; //L
+			if (x > MAX){
+                		input = 1; //R
+				if (column <= 31){
+					column++;
+				}
+        		} else if (y > MAX){
+                		input = 2; //D
+				if (column < 17){
+					column += 16;
+				}
+        		} else if (x < MIN){
+                		input = 3; //L
+				if (column > 17){
+					column--;
+				}
+        		} else if (y < MIN){
+                		input = 4; //U
+				if (column > 16){
+					column -= 16;
+				}
         		}
+			LCD_Cursor(column);
                         break;
                 default:
                         break;
         }
 	return F_s;
 }
+
+/*
+//LCD Screen
+int Tick_G(int state){
+	switch(G_s){
+		case GStart:
+			G_s = GInit;
+			break;
+		case GInit:
+			if (songStatus == 1){
+				G_s = GPlay;
+			}
+			break;
+		case GPlay:
+		       if (songStatus == 0){
+				G_s = GInit;
+		       } else if (songStatus == 2){
+				G_s = GEnd;
+			} else {
+				G_s = GPlay;
+			}
+			break;
+		case GEnd:
+			if (hCount != 0){
+				LCD_DisplayString(1, "You won! +1 score");
+			} else if (hCount <= 0){
+				LCD_DisplayString(1, "You lost! Game over");
+			}
+			break;
+		default:
+			break;
+	}
+
+	switch(G_s){
+                case GStart:
+                        break;
+                case GInit:
+                        break;
+                case GPlay:
+			
+                        break;
+		case GEnd:
+			break;
+                default:
+                        break;
+        }
+}
+
+*/
 
 int main(void) {
     /* Insert DDR and PORT initializations */
@@ -397,15 +465,15 @@ int main(void) {
 
 	//plays the melody
 	tasks[i].state = BStart;
-	tasks[i].period = 700;
-	tasks[i].elapsedTime = 700;
+	tasks[i].period = 800;
+	tasks[i].elapsedTime = 800;
 	tasks[i].TickFct = &Tick_B;
 	i++;
 
 	//plays the lights with the melody
 	tasks[i].state = CStart;
-        tasks[i].period = 700;
-        tasks[i].elapsedTime = 700;
+        tasks[i].period = 800;
+        tasks[i].elapsedTime = 800;
         tasks[i].TickFct = &Tick_C;
 	i++;
 
@@ -425,7 +493,7 @@ int main(void) {
 
 	//monitor joystick inputs
 	tasks[i].state = FStart;
-        tasks[i].period = 500;
+        tasks[i].period = 100;
         tasks[i].elapsedTime = 0;
         tasks[i].TickFct = &Tick_F;
 
@@ -437,19 +505,18 @@ int main(void) {
 	
     	while (1){
 		
-	/*	Used to test the joystick inputs
+		//Used to test the joystick inputs
 
 	 	x = ADC_read(5);
         	y = ADC_read(4);
 
 		if(x >= MAX || y >= MAX){
-                	PORTC = 0x01;
+                	PORTB = 0x01;
                 } else if (x <= MIN || y <= MIN){
-                        PORTC = 0x02;
+                        PORTB = 0x02;
                 } else {
-                	PORTC = 0x00;
-                }                                       */
-
+                	PORTB = 0x00;
+                }                                       
 	
 	}
 
