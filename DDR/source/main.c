@@ -40,6 +40,7 @@ enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and of
 enum EStates {EStart, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, ELose, EReset} E_s; //the actual game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 //enum GStates {GStart, GInit, GPlay, GEnd} G_s; //LCD screen
+//enum HStates {HStart, HInit, HShow} H_s; //EEPROM
 
 unsigned char BB, GB, YB, RB; //buttons
 unsigned short x, y; //joystick vertical and horizontal
@@ -53,13 +54,25 @@ unsigned char column = 32; //moves LCD cursor with joystick
 bool gameOn; //is the game on or off?
 int songStatus; //0 = off 1 = on 2 = end;
 
-unsigned char patterns[10] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
+/*
+unsigned char patternA[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
+unsigned char patternB[7]= {0x00, 0x30, 0x3C, 0x3F, 0x3C, 0x30, 0x00};
+unsigned char temp[1];
+
+
+double melodyA[10] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+double melodyB[6] = {329.63, 392.00, 659.25, 523.25, 587.33, 783.99}; //1-up
+//double melodyC[];
+int index = 1;
+double tmp[1];
+*/
+
+
+unsigned char patterns[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
 
 double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
 //double melodyB[];
 //double melodyC[];
-//double melodyD[];
-//double melodyE[];
 
 int size = sizeof melody/ sizeof melody[0]; //size of the song
 
@@ -69,6 +82,7 @@ void reset(){
 	C_s = AReset;
 	E_s = EReset;
 	PORTD = 0x3F;
+	songStatus = 0;
 }
 
 int Tick_A(int state){ //keeps track of health
@@ -123,6 +137,7 @@ int Tick_B(int state){ //plays the melody
 			}
 			break;
 		case BPlay:
+			//if (count <= (sizeof (tmp) / sizeof (tmp[0]))){
 			if (count <= size){
 				B_s = BPlay;
 			} else {
@@ -145,7 +160,16 @@ int Tick_B(int state){ //plays the melody
 			count = 0;
 			set_PWM(0);
 			break;
+/*
+			if(index == 1){
+                                memcpy(tmp, melodyA, sizeof melodyA);
+                        } else if (index == 2){
+                                memcpy(tmp, melodyB, sizeof melodyB);
+                        }
+			break;
+*/
 		case BPlay:
+		
 			if (count <= size){
 				set_PWM(melody[count]);
 				count++;
@@ -155,6 +179,18 @@ int Tick_B(int state){ //plays the melody
 				songStatus = 2;
 			}
 			break;
+
+/*
+			if (count <= (sizeof (tmp) / sizeof (tmp[0]))){
+				set_PWM(tmp[count]);
+				count++;
+			}
+
+			if (count >=  (sizeof (tmp) / sizeof (tmp[0])) + 1){
+				songStatus = 2;
+			}
+			break;
+*/
 		case BReset:
 			set_PWM(261.63);
 			break;
@@ -177,6 +213,7 @@ int Tick_C(int state){ //plays the lights with the melody
 			}
 			break;
 		case CLight:
+			//if (count > (sizeof (temp) / sizeof (temp[0]))){
 			if (count > size){
 				C_s = CInit;
 			} else {
@@ -193,10 +230,19 @@ int Tick_C(int state){ //plays the lights with the melody
                 case CStart:
                         break;
                 case CInit:
+			
+	/*
+			if (index == 1){
+				memcpy(temp, patternA, sizeof patternA);
+			} else if (index == 2){
+				memcpy(temp, patternB, sizeof patternB);
+			}
+	*/	
                         break;
                 case CLight:
 			if (count > 0){
-			  	PORTD = patterns[count];
+			  	//PORTD = temp[count];
+				PORTD = patterns[count];
 			} else {
 				PORTD = 0x3F;
 			}
@@ -276,9 +322,10 @@ int Tick_E(int state){ //the actual game
 		case EInit:
 			if (((column - 17) * (column - 23) < 0) && YB){
 				E_s = OPTION1A;
-			} else if (column == 24 && YB){
-				E_s = HSCORE;
-			}
+			} else if (column == 23 && YB){
+                                E_s = HSCORE;
+                        }
+
 			break;
 		case OPTION1A:
 			E_s = OPTION1B;
@@ -291,6 +338,7 @@ int Tick_E(int state){ //the actual game
 			break;
 		case HSCORE:
 			if (YB){
+				LCD_DisplayString(1, "Welcome to DDR! START * ");
 				E_s = EInit;
 			}
 			break;
@@ -304,6 +352,9 @@ int Tick_E(int state){ //the actual game
                         }
 			break;
 		case EWin:
+			if (YB){
+				E_s = OPTION1A;
+			} 
 			break;
 		case ELose:
 			break;
@@ -329,9 +380,9 @@ int Tick_E(int state){ //the actual game
 			LCD_DisplayString(1, "GO!");
 			songStatus = 1;
 			break;
-                case HSCORE:
-			LCD_WriteData(eScore + '0');
-                        break;
+		case HSCORE: 
+			LCD_DisplayString(1, "The high score is: ");
+			break;
                 case EPlay:
 			if (count % 2 == 0 && count != 9 && songStatus == 1){
 				LCD_DisplayString(1, "           Green");
@@ -357,9 +408,9 @@ int Tick_E(int state){ //the actual game
 			}
                         break;
 		case EWin:
-			LCD_DisplayString(1, "You won! +1     Continue? Y/N");
+			LCD_DisplayString(1, "You won! +1     Ready? Press YB");
 			score++;
-
+//			index++;
 			if (score == 1){
 				eeprom_write_byte(0, score);
 			} else if (score > 1) {
@@ -492,6 +543,7 @@ int Tick_G(int state){
                 default:
                         break;
         }
+	return G_s;
 }
 
 */
