@@ -37,7 +37,7 @@ enum AStates {AStart, AInit, AStatus, AReset} A_s; //keeps track of health
 enum BStates {BStart, BInit, BOn, BPlay, BReset} B_s; //plays the melody
 enum CStates {CStart, CInit, CLight, CReset} C_s; //plays the lights with the melody
 enum DStates {DStart, DOff, firstNote, silence, DOn} D_s; //turns game on and off
-enum EStates {EStart, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, ELose, EReset} E_s; //the actual game
+enum EStates {EStart, ERead, EInit, OPTION1A, OPTION1B, OPTION1C, HSCORE, EPlay, EWin, ELose, EReset, End, End2} E_s; //the actual game
 enum FStates {FStart, FInit, FStatus} F_s; //monitor joystick inputs
 //enum GStates {GStart, GInit, GPlay, GEnd} G_s; //LCD screen
 //enum HStates {HStart, HInit, HShow} H_s; //EEPROM
@@ -47,34 +47,32 @@ unsigned short x, y; //joystick vertical and horizontal
 unsigned char input; //result of joystick input
 
 unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
-unsigned char score, eScore; //track score, save to EEPROM
-
+unsigned char score; //track score
+unsigned char eScore = 5; //save to EEPROM
 unsigned char count = 0; //cycle through melody and lights
 unsigned char column = 32; //moves LCD cursor with joystick
 bool gameOn; //is the game on or off?
 int songStatus; //0 = off 1 = on 2 = end;
 
-/*
-unsigned char patternA[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
-unsigned char patternB[7]= {0x00, 0x30, 0x3C, 0x3F, 0x3C, 0x30, 0x00};
-unsigned char temp[1];
-
-
-double melodyA[10] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
-double melodyB[6] = {329.63, 392.00, 659.25, 523.25, 587.33, 783.99}; //1-up
-//double melodyC[];
+unsigned char patternA[11] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF, 0xFF, 0x00}; //lights
+unsigned char patternB[8]= {0x00, 0x30, 0x3C, 0x3F, 0x3C, 0x30, 0xFF, 0x00};
+unsigned char patternC[18] = {0x00, 0x20, 0x30, 0x38, 0x3C, 0x3E, 0x3F, 0x01, 0x03, 0x07, 0x0F, 0x3F, 0x30, 0x03, 0x0C, 0x00, 0xFF, 0x00};
+double melodyA[11] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66, 0.00}; //pallet town
+double melodyB[7] = {329.63, 392.00, 659.25, 523.25, 587.33, 783.99, 0.00}; //1-up
+double melodyC[17] = {349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 659.25, 587.33, 493.88, 523.25, 493.88, 392.00, 329.63};
 int index = 1;
-double tmp[1];
-*/
+double *tmp;
+unsigned char *temp;
 
 
-unsigned char patterns[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
 
-double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
+//unsigned char patterns[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
+
+//double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
 //double melodyB[];
 //double melodyC[];
 
-int size = sizeof melody/ sizeof melody[0]; //size of the song
+int size; //size of the song
 
 void reset(){
 	A_s = AReset;
@@ -137,7 +135,6 @@ int Tick_B(int state){ //plays the melody
 			}
 			break;
 		case BPlay:
-			//if (count <= (sizeof (tmp) / sizeof (tmp[0]))){
 			if (count <= size){
 				B_s = BPlay;
 			} else {
@@ -159,38 +156,27 @@ int Tick_B(int state){ //plays the melody
 		case BOn:
 			count = 0;
 			set_PWM(0);
+			if (index == 1){
+				tmp = melodyA;
+				size = sizeof melodyA / sizeof melodyA[0];
+			} else if (index == 2){
+				tmp = melodyB;
+				size = sizeof melodyB / sizeof melodyB[0];
+			} else if (index == 3){
+				tmp = melodyC;
+				size = sizeof melodyC / sizeof melodyC[0];
+			}
 			break;
-/*
-			if(index == 1){
-                                memcpy(tmp, melodyA, sizeof melodyA);
-                        } else if (index == 2){
-                                memcpy(tmp, melodyB, sizeof melodyB);
-                        }
-			break;
-*/
 		case BPlay:
-		
 			if (count <= size){
-				set_PWM(melody[count]);
-				count++;
-			}
-
-			if (count >=  size + 1){
-				songStatus = 2;
-			}
-			break;
-
-/*
-			if (count <= (sizeof (tmp) / sizeof (tmp[0]))){
 				set_PWM(tmp[count]);
 				count++;
 			}
 
-			if (count >=  (sizeof (tmp) / sizeof (tmp[0])) + 1){
+			if (count >= size + 1){
 				songStatus = 2;
 			}
 			break;
-*/
 		case BReset:
 			set_PWM(261.63);
 			break;
@@ -213,7 +199,6 @@ int Tick_C(int state){ //plays the lights with the melody
 			}
 			break;
 		case CLight:
-			//if (count > (sizeof (temp) / sizeof (temp[0]))){
 			if (count > size){
 				C_s = CInit;
 			} else {
@@ -230,19 +215,17 @@ int Tick_C(int state){ //plays the lights with the melody
                 case CStart:
                         break;
                 case CInit:
-			
-	/*
 			if (index == 1){
-				memcpy(temp, patternA, sizeof patternA);
-			} else if (index == 2){
-				memcpy(temp, patternB, sizeof patternB);
+                                temp = patternA;
+                        } else if (index == 2){
+                                temp = patternB;
+                        } else if (index == 3){
+				temp = patternC;
 			}
-	*/	
                         break;
                 case CLight:
 			if (count > 0){
-			  	//PORTD = temp[count];
-				PORTD = patterns[count];
+			  	PORTD = temp[count];
 			} else {
 				PORTD = 0x3F;
 			}
@@ -297,7 +280,7 @@ int Tick_D(int state){ //turns game on and off
 		case silence:
 			set_PWM(0);
                         LCD_DisplayString(1, "Welcome to DDR! START * ");
-			LCD_WriteData(eScore);
+			LCD_WriteData(eScore + '0');
 			gameOn = true;
 			break;
                 case DOn:
@@ -313,10 +296,11 @@ int Tick_E(int state){ //the actual game
 	GB = ~PINA & 0x02;
 	YB = ~PINA & 0x08;
 
-	eScore = 0;
-
 	switch(E_s){
 		case EStart:
+			E_s = ERead;
+			break;
+		case ERead:
 			E_s = EInit;
 			break;
 		case EInit:
@@ -346,20 +330,33 @@ int Tick_E(int state){ //the actual game
 			if (hCount == 0){
 				E_s = ELose;
                         } else if (songStatus == 2 && hCount != 0){
-				E_s = EWin;
+				index++;
+				score++;
+				if (index != 4){
+					E_s = EWin;
+				} else {
+					E_s = End;
+				}
 			} else	{
                                 E_s = EPlay;
                         }
 			break;
 		case EWin:
-			if (YB){
+			if (YB && index != 4){
 				E_s = OPTION1A;
-			} 
+			} else if (index == 4){
+			       E_s = End;
+		      	}	       
 			break;
 		case ELose:
 			break;
 		case EReset:
 			E_s = EStart;
+			break;
+		case End:
+			E_s = End2;
+			break;
+		case End2:
 			break;
 		default:
 			break;
@@ -368,6 +365,12 @@ int Tick_E(int state){ //the actual game
 	switch(E_s){
                 case EStart:
                         break;
+		case ERead:
+			while (!eeprom_is_ready()){
+                                asm("nop");
+                        }
+			eScore = eeprom_read_byte(1);
+			break;
                 case EInit:
                         break;
 		case OPTION1A:
@@ -381,7 +384,8 @@ int Tick_E(int state){ //the actual game
 			songStatus = 1;
 			break;
 		case HSCORE: 
-			LCD_DisplayString(1, "The high score is: ");
+			LCD_DisplayString(1, "High score: ");
+			LCD_WriteData(eScore + '0');
 			break;
                 case EPlay:
 			if (count % 2 == 0 && count != 9 && songStatus == 1){
@@ -408,36 +412,35 @@ int Tick_E(int state){ //the actual game
 			}
                         break;
 		case EWin:
-			LCD_DisplayString(1, "You won! +1     Ready? Press YB");
-			score++;
-//			index++;
-			if (score == 1){
-				eeprom_write_byte(0, score);
-			} else if (score > 1) {
-				eScore = eeprom_read_byte(0);
-
-				if (eScore < score){
-					eeprom_write_byte(0, score);
-					//FIX
-				}
+			LCD_DisplayString(1, "Round won! +1   Ready? Press YB");
+			if (eScore < score){
+				eeprom_update_byte(1, score);
 			}
+
 			set_PWM(523.25);
 			reset();
 			break;
 		case ELose:
-			eScore = eeprom_read_byte(0);
+			eScore = eeprom_read_byte(1);
+
 			if (eScore < score){
-				eeprom_write_byte(0, score);
+				eeprom_update_byte(1, score);
 				LCD_DisplayString(1, "You lose!       Score saved");
 			} else {
 				LCD_DisplayString(1, "You lose!");
 				score = 0;
 			}
-			eeprom_write_byte(0, score);
+	
 			break;
 		case EReset:
 			reset();
 			set_PWM(0);
+			break;
+		case End:
+			LCD_DisplayString(1, "Yay! You won!   Total score: ");
+			LCD_WriteData(score + '0');
+			break;
+		case End2:
 			break;
                 default:
                         break;
