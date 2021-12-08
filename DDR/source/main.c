@@ -49,6 +49,7 @@ unsigned char input; //result of joystick input
 unsigned char health[5] = {0x00, 0x00, 0x04, 0x06, 0x07}; int hCount = 0; //display and track health
 unsigned char score; //track score
 unsigned char eScore = 5; //save to EEPROM
+int EEMEM mem = 0;
 unsigned char count = 0; //cycle through melody and lights
 unsigned char column = 32; //moves LCD cursor with joystick
 bool gameOn; //is the game on or off?
@@ -59,19 +60,10 @@ unsigned char patternB[8]= {0x00, 0x30, 0x3C, 0x3F, 0x3C, 0x30, 0xFF, 0x00};
 unsigned char patternC[18] = {0x00, 0x20, 0x30, 0x38, 0x3C, 0x3E, 0x3F, 0x01, 0x03, 0x07, 0x0F, 0x3F, 0x30, 0x03, 0x0C, 0x00, 0xFF, 0x00};
 double melodyA[11] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66, 0.00}; //pallet town
 double melodyB[7] = {329.63, 392.00, 659.25, 523.25, 587.33, 783.99, 0.00}; //1-up
-double melodyC[17] = {349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 659.25, 587.33, 493.88, 523.25, 493.88, 392.00, 329.63};
+double melodyC[17] = {349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 349.23, 440.00, 493.88, 659.25, 587.33, 493.88, 523.25, 493.88, 392.00, 329.63}; //lost woods
 int index = 1;
 double *tmp;
 unsigned char *temp;
-
-
-
-//unsigned char patterns[10] = {0x00, 0x02, 0x04, 0x08, 0x10, 0x0F, 0xF0, 0x0F, 0x00, 0xFF}; //lights
-
-//double melody[9] = {293.66, 261.63, 246.64, 220.00, 392.00, 329.63, 369.99, 329.63, 293.66}; //pallet town
-//double melodyB[];
-//double melodyC[];
-
 int size; //size of the song
 
 void reset(){
@@ -280,7 +272,6 @@ int Tick_D(int state){ //turns game on and off
 		case silence:
 			set_PWM(0);
                         LCD_DisplayString(1, "Welcome to DDR! START * ");
-			LCD_WriteData(eScore + '0');
 			gameOn = true;
 			break;
                 case DOn:
@@ -309,7 +300,6 @@ int Tick_E(int state){ //the actual game
 			} else if (column == 23 && YB){
                                 E_s = HSCORE;
                         }
-
 			break;
 		case OPTION1A:
 			E_s = OPTION1B;
@@ -366,10 +356,6 @@ int Tick_E(int state){ //the actual game
                 case EStart:
                         break;
 		case ERead:
-			while (!eeprom_is_ready()){
-                                asm("nop");
-                        }
-			eScore = eeprom_read_byte(1);
 			break;
                 case EInit:
                         break;
@@ -413,24 +399,15 @@ int Tick_E(int state){ //the actual game
                         break;
 		case EWin:
 			LCD_DisplayString(1, "Round won! +1   Ready? Press YB");
-			if (eScore < score){
-				eeprom_update_byte(1, score);
-			}
-
+			eeprom_write_byte(&mem, score);
 			set_PWM(523.25);
 			reset();
 			break;
 		case ELose:
-			eScore = eeprom_read_byte(1);
-
-			if (eScore < score){
-				eeprom_update_byte(1, score);
-				LCD_DisplayString(1, "You lose!       Score saved");
-			} else {
-				LCD_DisplayString(1, "You lose!");
-				score = 0;
-			}
-	
+			eeprom_write_byte(&mem, score);
+			eScore = eeprom_read_byte(&mem);
+			LCD_DisplayString(1, "You lose!       Score saved");
+			score = 0;	
 			break;
 		case EReset:
 			reset();
@@ -439,6 +416,7 @@ int Tick_E(int state){ //the actual game
 		case End:
 			LCD_DisplayString(1, "Yay! You won!   Total score: ");
 			LCD_WriteData(score + '0');
+                        eeprom_write_byte(&mem, score);
 			break;
 		case End2:
 			break;
@@ -558,7 +536,7 @@ int main(void) {
 	DDRC = 0xFF; PORTC = 0x00;
 	DDRD = 0xFF; PORTD = 0x00;
     /* Insert your solution below */
-	
+
 	unsigned char i = 0;
 
 	//keeps track of health
@@ -607,7 +585,9 @@ int main(void) {
 	PWM_on();
 	ADC_init();
 	LCD_init();
-	
+	eScore = eeprom_read_byte(&mem);
+
+
     	while (1){
 		
 /*		//Used to test the joystick inputs
